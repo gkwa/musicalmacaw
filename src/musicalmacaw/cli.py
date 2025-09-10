@@ -79,7 +79,7 @@ def main() -> None:
     duration = calculator.calculate_duration(args.filepath)
 
     if duration is None:
-        logger.error("Could not extract timestamp from filename")
+        logger.error("Could not extract timestamp from filename or file metadata")
         sys.exit(1)
 
     # Output result (silence is golden - only output the result)

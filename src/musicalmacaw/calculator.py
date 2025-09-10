@@ -17,11 +17,30 @@ class DurationCalculator:
         self.current_timezone = current_timezone
         self.logger = logging.getLogger(__name__)
 
+    def _get_file_mtime(self, filepath: str) -> datetime.datetime | None:
+        """Get file modification time as fallback timestamp."""
+        path = pathlib.Path(filepath)
+        if not path.exists():
+            return None
+
+        try:
+            # Get modification time as timestamp
+            mtime = path.stat().st_mtime
+            # Convert to datetime in the current timezone
+            file_time = datetime.datetime.fromtimestamp(mtime, tz=self.current_timezone)
+        except (OSError, ValueError) as e:
+            self.logger.debug("Could not get file modification time: %s", e)
+            return None
+
+        self.logger.info("Using file modification time: %s", file_time)
+        return file_time
+
     def parse_timestamp(self, filepath: str) -> datetime.datetime | None:
-        """Try to parse timestamp using available parsers."""
+        """Try to parse timestamp using available parsers, fallback to file mtime."""
         filename = pathlib.Path(filepath).name
         self.logger.debug("Parsing filename: %s", filename)
 
+        # Try filename parsing first
         for parser in self.parsers:
             self.logger.debug("Trying parser: %s", parser.__class__.__name__)
             timestamp = parser.parse(filename)
@@ -35,8 +54,13 @@ class DurationCalculator:
             )
             return timestamp
 
-        self.logger.warning("No parser could extract timestamp from: %s", filename)
-        return None
+        self.logger.info(
+            "No parser could extract timestamp from filename: %s", filename
+        )
+
+        # Fallback to file modification time
+        self.logger.info("Falling back to file modification time")
+        return self._get_file_mtime(filepath)
 
     def format_duration(self, start_time: datetime.datetime) -> str:
         """Format duration from start_time to now in user-friendly format."""
