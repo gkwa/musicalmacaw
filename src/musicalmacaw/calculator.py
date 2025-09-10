@@ -4,6 +4,9 @@ import pathlib
 
 from musicalmacaw.parsers.base import TimestampParser
 
+# Maximum days to show hours alongside days for readability
+MAX_DAYS_WITH_HOURS = 7
+
 
 class DurationCalculator:
     """Calculate and format duration between timestamps."""
@@ -71,14 +74,25 @@ class DurationCalculator:
         if total_seconds < 0:
             return "0m"  # Future timestamp
 
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
+        days = total_seconds // 86400  # 24 * 60 * 60
+        remaining_seconds = total_seconds % 86400
+        hours = remaining_seconds // 3600
+        minutes = (remaining_seconds % 3600) // 60
 
         parts: list[str] = []
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0:
-            parts.append(f"{minutes}m")
+
+        # Use days if >= 1 day
+        if days > 0:
+            parts.append(f"{days}d")
+            # Only show hours for shorter periods to avoid verbose output
+            if days < MAX_DAYS_WITH_HOURS and hours > 0:
+                parts.append(f"{hours}h")
+        else:
+            # Less than a day - show hours and minutes as before
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
 
         return "".join(parts) if parts else "0m"
 
