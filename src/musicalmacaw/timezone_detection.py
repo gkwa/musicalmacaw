@@ -17,19 +17,25 @@ def _validate_timezone_offset(hours_offset: int) -> None:
         raise ValueError(msg)
 
 
+def _get_current_utc_offset_seconds() -> int:
+    """Get the current UTC offset in seconds, accounting for DST."""
+    is_dst = time.localtime().tm_isdst > 0
+
+    if is_dst and hasattr(time, "altzone"):
+        return -time.altzone
+    return -time.timezone
+
+
 def _try_get_timezone_from_time_module() -> datetime.timezone | None:
     """Try to get timezone using time module."""
     try:
         _validate_timezone_name()
-
-        # Get UTC offset in seconds
-        utc_offset_seconds = -time.timezone
-        if time.daylight and time.tzname[1]:
-            # Adjust for daylight saving time if active
-            utc_offset_seconds = -time.altzone
-
+        utc_offset_seconds = _get_current_utc_offset_seconds()
         offset = datetime.timedelta(seconds=utc_offset_seconds)
-        return datetime.timezone(offset, time.tzname[0])
+
+        is_dst = time.localtime().tm_isdst > 0
+        tz_name = time.tzname[1 if is_dst else 0]
+        return datetime.timezone(offset, tz_name)
     except (AttributeError, OSError, ValueError):
         return None
 
@@ -37,14 +43,10 @@ def _try_get_timezone_from_time_module() -> datetime.timezone | None:
 def _try_get_timezone_from_time_offset() -> datetime.timezone | None:
     """Try to get timezone using time.timezone offset."""
     try:
-        # Use time.timezone which gives UTC offset in seconds
         if not hasattr(time, "timezone"):
             return None
 
-        utc_offset_seconds = -time.timezone
-        if time.daylight and hasattr(time, "altzone"):
-            # Use daylight saving time offset if available
-            utc_offset_seconds = -time.altzone
+        utc_offset_seconds = _get_current_utc_offset_seconds()
 
         # Convert to hours for validation
         hours_offset = utc_offset_seconds // 3600
